@@ -14,16 +14,25 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-2. Generate a self-signed certificate pair in the project folder:
+2. Generate a self-signed certificate pair:
 
 ```powershell
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -subj "/CN=localhost"
 ```
 
-3. Start the server:
+3. Store the PEM values in the application's `.env` file before starting in HTTPS mode:
+
+```dotenv
+TLS_CERT_PEM="-----BEGIN CERTIFICATE-----\n...certificate contents...\n-----END CERTIFICATE-----"
+TLS_KEY_PEM="-----BEGIN PRIVATE KEY-----\n...private-key contents...\n-----END PRIVATE KEY-----"
+```
+
+Replace the placeholder PEM blocks with your complete certificate and private key. Do not commit `.env` to source control.
+
+4. Start the server:
 
 ```powershell
-# HTTPS on default port 8443 (requires cert.pem and key.pem)
+# HTTPS on default port 8443 (requires TLS_CERT_PEM and TLS_KEY_PEM)
 python server.py
 
 # HTTP on default port 8443 (no certificate needed)
@@ -43,7 +52,7 @@ python server.py --mode https --port 9443
 | `--mode` | `http`, `https` | `https` | Run the server in HTTP or HTTPS mode |
 | `--port` | any integer | `8443` | Port to listen on |
 
-By default the server listens on `https://0.0.0.0:8443`. When using `--mode https`, the certificate files (`cert.pem` and `key.pem`) must exist in the project folder.
+By default the server listens on `https://0.0.0.0:8443`. When using `--mode https`, set `TLS_CERT_PEM` to the PEM certificate and `TLS_KEY_PEM` to its matching PEM private key. Both literal newlines and escaped `\n` newlines are supported. The server creates temporary PEM files only long enough to load the TLS context, then deletes them before serving requests.
 
 ## API Endpoints
 

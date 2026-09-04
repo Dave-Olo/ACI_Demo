@@ -2,11 +2,15 @@ import hashlib
 import logging
 import os
 import sqlite3
+import ssl
+import tempfile
 from datetime import datetime
 
 from flask import Flask, jsonify, request
+from dotenv import load_dotenv
 
 DATABASE = os.path.join(os.path.dirname(__file__), "pins.db")
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,6 +20,38 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+
+def get_tls_context():
+    certificate = os.environ.get("TLS_CERT_PEM", "").replace("\\n", "\n")
+    private_key = os.environ.get("TLS_KEY_PEM", "").replace("\\n", "\n")
+
+    missing_variables = []
+    if not certificate.strip():
+        missing_variables.append("TLS_CERT_PEM")
+    if not private_key.strip():
+        missing_variables.append("TLS_KEY_PEM")
+    if missing_variables:
+        raise RuntimeError(
+            f"Missing required HTTPS environment variable(s): {', '.join(missing_variables)}"
+        )
+
+    certificate_file = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
+    private_key_file = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
+    try:
+        certificate_file.write(certificate)
+        private_key_file.write(private_key)
+    finally:
+        certificate_file.close()
+        private_key_file.close()
+
+    try:
+        tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls_context.load_cert_chain(certificate_file.name, private_key_file.name)
+        return tls_context
+    finally:
+        os.remove(certificate_file.name)
+        os.remove(private_key_file.name)
 
 
 def get_db_connection():
@@ -377,16 +413,10 @@ if __name__ == "__main__":
     init_db()
 
     if args.mode == "https":
-        cert_path = os.path.join(os.path.dirname(__file__), "cert.pem")
-        key_path = os.path.join(os.path.dirname(__file__), "key.pem")
-
-        if not os.path.exists(cert_path) or not os.path.exists(key_path):
-            raise FileNotFoundError(
-                "HTTPS certificate files not found. Create cert.pem and key.pem in the project folder."
-            )
+        tls_context = get_tls_context()
 
         logger.info("Starting HTTPS server on https://0.0.0.0:%d ...", args.port)
-        app.run(host="0.0.0.0", port=args.port, ssl_context=(cert_path, key_path))
+        app.run(host="0.0.0.0", port=args.port, ssl_context=tls_context)
     else:
         logger.info("Starting HTTP server on http://0.0.0.0:%d ...", args.port)
         app.run(host="0.0.0.0", port=args.port)
