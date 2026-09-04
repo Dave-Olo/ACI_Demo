@@ -22,6 +22,19 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 
+def get_default_port() -> int:
+    port_value = os.environ.get("PORT", "8443")
+    try:
+        port = int(port_value)
+    except ValueError as error:
+        raise RuntimeError("PORT must be an integer between 1 and 65535.") from error
+
+    if not 1 <= port <= 65535:
+        raise RuntimeError("PORT must be an integer between 1 and 65535.")
+
+    return port
+
+
 def get_tls_context():
     certificate = os.environ.get("TLS_CERT_PEM", "").replace("\\n", "\n")
     private_key = os.environ.get("TLS_KEY_PEM", "").replace("\\n", "\n")
@@ -405,8 +418,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port",
         type=int,
-        default=8443,
-        help="Port to listen on (default: 8443)",
+        default=get_default_port(),
+        help="Port to listen on (default: PORT from .env, or 8443)",
     )
     args = parser.parse_args()
 
