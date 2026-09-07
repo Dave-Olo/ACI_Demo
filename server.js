@@ -283,16 +283,15 @@ app.post("/authenticate", (req, res) => {
       .json({ success: false, authenticated: false, error: "Access code has already been used." });
   }
 
-  db.prepare("UPDATE pins SET used = 1 WHERE id = ?").run(row.id);
   db.close();
   logger.info(
-    `POST /authenticate - authenticated and invalidated for facilityId=${facilityId} facilityName=${facilityName}`
+    `POST /authenticate - authenticated for facilityId=${facilityId} facilityName=${facilityName}`
   );
 
   return res.status(200).json({
     success: true,
     authenticated: true,
-    message: "Access code is valid and has been invalidated.",
+    message: "Access code is valid.",
     facilityName,
   });
 });
