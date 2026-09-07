@@ -1,59 +1,47 @@
-# HTTPS Access Code Authentication Server
+# Access Code Authentication Server
 
-A Python HTTPS server with a SQLite database for per-facility access code registration, authentication, and invalidation, plus facility registration.
+A Node.js (Express) HTTP server with a SQLite database for per-facility access code registration, authentication, and invalidation, plus facility registration.
 
 All JSON payloads use camelCase field names. Access codes are scoped to a `facilityId` so the same code can exist independently across different facilities.
 
+TLS is not handled by the app itself. On Render (and similar platforms), TLS is terminated at the edge/load balancer, which forwards plain HTTP to the app; see `Procfile`.
+
 ## Setup
 
-1. Create a Python virtual environment and install dependencies:
+1. Install dependencies:
 
 ```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+npm install
 ```
 
-2. Generate a self-signed certificate pair:
-
-```powershell
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -subj "/CN=localhost"
-```
-
-3. Store the PEM values in the application's `.env` file before starting in HTTPS mode:
+2. Configure the application's `.env` file:
 
 ```dotenv
-PORT=8443
-TLS_CERT_PEM="-----BEGIN CERTIFICATE-----\n...certificate contents...\n-----END CERTIFICATE-----"
-TLS_KEY_PEM="-----BEGIN PRIVATE KEY-----\n...private-key contents...\n-----END PRIVATE KEY-----"
+PORT=8000
+HOST=0.0.0.0
 ```
 
-Replace the placeholder PEM blocks with your complete certificate and private key. Do not commit `.env` to source control.
-
-4. Start the server:
+3. Start the server:
 
 ```powershell
-# HTTPS on the PORT configured in .env (requires TLS_CERT_PEM and TLS_KEY_PEM)
-python server.py
+# Listens on the PORT/HOST configured in .env
+node server.js
 
-# HTTP on the PORT configured in .env (no certificate needed)
-python server.py --mode http
+# Custom port
+node server.js --port 5000
 
-# HTTP on a custom port
-python server.py --mode http --port 5000
-
-# HTTPS on a custom port
-python server.py --mode https --port 9443
+# Custom host and port
+node server.js --host 127.0.0.1 --port 5000
 ```
 
 ### Command-line arguments
 
 | Argument | Values | Default | Description |
 |----------|--------|---------|-------------|
-| `--mode` | `http`, `https` | `https` | Run the server in HTTP or HTTPS mode |
 | `--port` | any integer | `PORT` from `.env`, or `8443` | Port to listen on; overrides `PORT` |
+| `--host` | any host/IP | `HOST` from `.env`, or `0.0.0.0` | Host/IP to bind to; overrides `HOST` |
 
-Set `PORT` in `.env` to an integer from `1` through `65535`; it defaults to `8443` when omitted. When using `--mode https`, set `TLS_CERT_PEM` to the PEM certificate and `TLS_KEY_PEM` to its matching PEM private key. Both literal newlines and escaped `\n` newlines are supported. The server creates temporary PEM files only long enough to load the TLS context, then deletes them before serving requests.
+Set `PORT` in `.env` to an integer from `1` through `65535`; it defaults to `8443` when omitted (see `.env` for the configured value). Set `HOST` to the address to bind to; it defaults to `0.0.0.0` (all interfaces) so the app is reachable regardless of the machine's LAN IP.
 
 ## API Endpoints
 
@@ -152,17 +140,3 @@ GET `/status`
 Response:
 
 - `200`: Server is running
-
-
-Issues:
-
-if you encounter this issue in powershell
-```
-.\venv\Scripts\Activate.ps1 .\venv\Scripts\Activate.ps1 : File C:\Users\USER\Documents\STM\ACI\Python Server\venv\Scripts\Activate.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170. At line:1 char:1 + .\venv\Scripts\Activate.ps1 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~ + CategoryInfo : SecurityError: (:) [], PSSecurityException + FullyQualifiedErrorId : UnauthorizedAccess
-```
-
-use this command:
-
-```
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-```

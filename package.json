@@ -1,0 +1,14 @@
+{
+  "name": "aci-pin-auth-server",
+  "version": "1.0.0",
+  "description": "Access code authentication server with per-facility PIN registration, authentication, and invalidation.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
