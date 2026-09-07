@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 
+def init_app():
+    init_db()
+
+
 def get_default_port() -> int:
     port_value = os.environ.get("PORT", "8443")
     try:
@@ -405,6 +409,8 @@ def status():
     return jsonify({"success": True, "message": "HTTPS PIN auth server is running."}), 200
 
 
+init_app()
+
 if __name__ == "__main__":
     import argparse
 
@@ -422,8 +428,6 @@ if __name__ == "__main__":
         help="Port to listen on (default: PORT from .env, or 8443)",
     )
     args = parser.parse_args()
-
-    init_db()
 
     if args.mode == "https":
         tls_context = get_tls_context()
