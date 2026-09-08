@@ -113,10 +113,6 @@ function getDefaultPort() {
   return port;
 }
 
-function getDefaultHost() {
-  // Bind to all interfaces unless a specific host/IP is configured.
-  return process.env.HOST || "0.0.0.0";
-}
 
 const app = express();
 app.use(express.json());
@@ -373,15 +369,13 @@ if (require.main === module) {
   const { values } = parseArgs({
     options: {
       port: { type: "string", default: String(getDefaultPort()) },
-      host: { type: "string", default: getDefaultHost() },
     },
   });
 
   const port = Number(values.port);
-  const host = values.host;
 
-  http.createServer(app).listen(port, host, () => {
-    logger.info(`Starting HTTP server on http://${host}:${port} ...`);
+  http.createServer(app).listen(port, () => {
+    logger.info(`Starting HTTP server on port ${port}.`);
   });
 }
 
