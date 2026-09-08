@@ -1,5 +1,4 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
 .env
+node_modules/
+npm-debug.log*
+pins.db

@@ -1,91 +1,85 @@
-# HTTPS Access Code Authentication Server
+# Access Code Authentication Server
 
-A Python HTTPS server with a SQLite database for per-facility access code registration, authentication, and invalidation, plus facility registration.
+A Node.js (Express) HTTP server with a SQLite database for per-facility access code registration, authentication, and invalidation, plus facility registration.
 
-All JSON payloads use camelCase field names. Access codes are scoped to a `facilityId` so the same code can exist independently across different facilities.
+All JSON payloads use **camelCase** field names. Access codes are scoped to a `facilityId`, so the same code can exist independently across different facilities.
+
+TLS is **not** handled by the application. On platforms like Render, TLS is terminated at the edge/load balancer and plain HTTP is forwarded to the app.
+
+---
 
 ## Setup
 
-1. Create a Python virtual environment and install dependencies:
+### 1. Install dependencies
 
 ```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+npm install
 ```
 
-2. Generate a self-signed certificate pair:
+> **Note for Windows users**  
+> `better-sqlite3` is a native module. If you see a warning about install scripts, run:
+> ```powershell
+> npm approve-scripts better-sqlite3
+> npm rebuild better-sqlite3
+> ```
 
-```powershell
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout key.pem -out cert.pem -subj "/CN=localhost"
-```
-
-3. Store the PEM values in the application's `.env` file before starting in HTTPS mode:
+### 2. Configure `.env`
 
 ```dotenv
-PORT=8443
-TLS_CERT_PEM="-----BEGIN CERTIFICATE-----\n...certificate contents...\n-----END CERTIFICATE-----"
-TLS_KEY_PEM="-----BEGIN PRIVATE KEY-----\n...private-key contents...\n-----END PRIVATE KEY-----"
+PORT=8000
+HOST=0.0.0.0
 ```
 
-Replace the placeholder PEM blocks with your complete certificate and private key. Do not commit `.env` to source control.
-
-4. Start the server:
+### 3. Start the server
 
 ```powershell
-# HTTPS on the PORT configured in .env (requires TLS_CERT_PEM and TLS_KEY_PEM)
-python server.py
+# Uses values from .env
+node server.js
 
-# HTTP on the PORT configured in .env (no certificate needed)
-python server.py --mode http
+# Custom port
+node server.js --port 5000
 
-# HTTP on a custom port
-python server.py --mode http --port 5000
-
-# HTTPS on a custom port
-python server.py --mode https --port 9443
+# Custom host and port
+node server.js --host 127.0.0.1 --port 5000
 ```
 
-### Command-line arguments
+#### Command-line arguments
 
-| Argument | Values | Default | Description |
-|----------|--------|---------|-------------|
-| `--mode` | `http`, `https` | `https` | Run the server in HTTP or HTTPS mode |
-| `--port` | any integer | `PORT` from `.env`, or `8443` | Port to listen on; overrides `PORT` |
+| Argument | Values      | Default                          | Description                          |
+|----------|-------------|----------------------------------|--------------------------------------|
+| `--port` | any integer | `PORT` from `.env`, or `8443`    | Port to listen on                    |
+| `--host` | any host/IP | `HOST` from `.env`, or `0.0.0.0` | Host/IP to bind to                   |
 
-Set `PORT` in `.env` to an integer from `1` through `65535`; it defaults to `8443` when omitted. When using `--mode https`, set `TLS_CERT_PEM` to the PEM certificate and `TLS_KEY_PEM` to its matching PEM private key. Both literal newlines and escaped `\n` newlines are supported. The server creates temporary PEM files only long enough to load the TLS context, then deletes them before serving requests.
+---
 
 ## API Endpoints
 
 ### Register a new access code
 
-POST `/register`
-
-Request JSON:
+**POST** `/register`
 
 ```json
 {
-  "accessCode": "1234",
+  "accessCode": "123456",
   "facilityId": "FAC001",
   "facilityName": "Your Facility Name"
 }
 ```
 
-- `accessCode`: 4–16 digit numeric string
-- `facilityId`: identifier of the facility this code belongs to
-- `facilityName`: display name of the facility (stored with the code and validated on authenticate/invalidate)
+- `accessCode`: 4–16 digit numeric string  
+- `facilityId`: facility identifier  
+- `facilityName`: display name (stored and later validated)
 
-Response:
+**Responses**
+- `201` – Access code registered successfully  
+- `400` – Missing or invalid fields  
+- `409` – Access code already exists for this facility  
 
-- `201`: Access code registered successfully
-- `400`: Missing or invalid fields
-- `409`: Access code already exists for this facility
+---
 
 ### Register facility details
 
-POST `/facility/register`
-
-Request JSON:
+**POST** `/facility/register`
 
 ```json
 {
@@ -95,74 +89,151 @@ Request JSON:
 }
 ```
 
-Response:
+**Responses**
+- `201` – Facility registration received successfully  
+- `400` – Missing or invalid fields  
+- `409` – Facility registration already exists  
 
-- `201`: Facility registration received successfully
-- `400`: Missing or invalid fields
-- `409`: Facility registration already exists
+---
 
 ### Authenticate an access code
 
-POST `/authenticate`
-
-Request JSON:
+**POST** `/authenticate`
 
 ```json
 {
-  "accessCode": "1234",
+  "accessCode": "123456",
   "facilityId": "FAC001",
   "facilityName": "Your Facility Name"
 }
 ```
 
-Validates the access code for the given facility (including `facilityName` match) and immediately marks it as used (one-time use).
+Validates the code without marking it as used. Call `/invalidate` separately to mark it used.
 
-Response:
+**Responses**
+- `200` – Access code is valid  
+- `400` – Missing or invalid fields  
+- `403` – Already used **or** facility name mismatch  
+- `404` – Access code not found  
 
-- `200`: Access code is valid and has been invalidated
-- `400`: Missing or invalid fields
-- `403`: Access code has already been used, or facility name does not match
-- `404`: Access code not found
+---
 
 ### Invalidate an access code
 
-POST `/invalidate`
-
-Request JSON:
+**POST** `/invalidate`
 
 ```json
 {
-  "accessCode": "1234",
+  "accessCode": "123456",
   "facilityId": "FAC001",
   "facilityName": "Your Facility Name"
 }
 ```
 
-Response:
+**Responses**
+- `200` – Access code invalidated successfully (or was already invalidated)  
+- `400` – Missing or invalid fields  
+- `403` – Facility name does not match  
+- `404` – Access code not found  
 
-- `200`: Access code invalidated successfully (or was already invalidated)
-- `400`: Missing or invalid fields
-- `403`: Facility name does not match
-- `404`: Access code not found
+---
 
 ### Health check
 
-GET `/status`
+**GET** `/status`
 
-Response:
+- `200` – Server is running
 
-- `200`: Server is running
+---
 
+## Testing the API (Windows PowerShell)
 
-Issues:
+1. Start the server in one terminal:
+   ```powershell
+   node server.js --port 5000
+   ```
 
-if you encounter this issue in powershell
+2. Open a **second** PowerShell window for testing (do **not** use the same window).
+
+### Recommended way to send requests
+
+```powershell
+$body = @{
+    accessCode   = "123456"
+    facilityId   = "FAC001"
+    facilityName = "Your Facility Name"
+} | ConvertTo-Json
 ```
-.\venv\Scripts\Activate.ps1 .\venv\Scripts\Activate.ps1 : File C:\Users\USER\Documents\STM\ACI\Python Server\venv\Scripts\Activate.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170. At line:1 char:1 + .\venv\Scripts\Activate.ps1 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~ + CategoryInfo : SecurityError: (:) [], PSSecurityException + FullyQualifiedErrorId : UnauthorizedAccess
+
+#### Register
+```powershell
+Invoke-RestMethod -Uri "http://localhost:5000/register" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body $body
 ```
 
-use this command:
+#### Authenticate
+```powershell
+Invoke-RestMethod -Uri "http://localhost:5000/authenticate" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body $body
+```
 
+#### Invalidate
+```powershell
+Invoke-RestMethod -Uri "http://localhost:5000/invalidate" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body $body
 ```
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+
+#### Health check
+```powershell
+Invoke-RestMethod -Uri "http://localhost:5000/status"
 ```
+
+> **Tip**: On Windows PowerShell, prefer `Invoke-RestMethod` or `curl.exe`.  
+> Plain `curl` is an alias for `Invoke-WebRequest` and will usually fail with the examples above.
+
+---
+
+## Troubleshooting
+
+### Port already in use (`EADDRINUSE`)
+```powershell
+# Option A – use another port
+node server.js --port 5000
+
+# Option B – free the port
+netstat -ano | findstr :8000
+taskkill /PID <PID_NUMBER> /F
+```
+
+### better-sqlite3 / native module issues
+```powershell
+npm approve-scripts better-sqlite3
+npm rebuild better-sqlite3
+```
+
+### JSON parse errors from the server
+Make sure you are sending a proper JSON body. The safest pattern is the `$body = @{ ... } | ConvertTo-Json` method shown above.
+
+---
+
+## Typical test flow
+
+1. Register a new access code → expect success  
+2. Authenticate the same code → expect success (code is now used)  
+3. Authenticate the same code again → expect `403` (already used)  
+4. Register another code and then Invalidate it → expect success  
+```
+
+The file has been created at:
+
+**`/home/workdir/artifacts/README.md`**
+
+You can download it and replace your existing `README.md` with this improved version.  
+
+Would you like any further changes (for example, adding Linux/macOS `curl` examples as well)?
