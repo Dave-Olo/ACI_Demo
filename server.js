@@ -8,6 +8,7 @@ const { parseArgs } = require("util");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express = require("express");
+const cors = require("cors");
 const Database = require("better-sqlite3");
 
 const DATABASE_PATH = path.join(__dirname, "pins.db");
@@ -115,6 +116,7 @@ function getDefaultPort() {
 
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 function missingFields(fields) {
