@@ -138,6 +138,44 @@ Validates the code without marking it as used. Call `/invalidate` separately to 
 
 ---
 
+### Register a guest visit
+
+**POST** `/guest/register`
+
+```json
+{
+  "guestName": "Jane Doe",
+  "guestEmail": "jane@example.com",
+  "guestPhone": "+1 555 0100"
+}
+```
+
+The response contains a unique six-digit `pin`. Store or send this PIN to the guest; it is only returned during registration.
+
+**Responses**
+- `201` - Guest visit registered and PIN issued
+- `400` - Missing fields or invalid email
+
+### Validate a guest visit
+
+**POST** `/guest/validate`
+
+```json
+{
+  "pin": "123456"
+}
+```
+
+Validation marks the PIN as used and returns the registered guest details. A PIN can only be validated once.
+
+**Responses**
+- `200` - Guest PIN validated successfully
+- `400` - Missing or invalid PIN
+- `404` - Guest PIN not found
+- `409` - Guest PIN has already been used
+
+---
+
 ### Health check
 
 **GET** `/status`

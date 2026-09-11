@@ -93,6 +93,19 @@ function initDb() {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS guest_visits (
+      id TEXT PRIMARY KEY,
+      guest_name TEXT NOT NULL,
+      guest_email TEXT NOT NULL,
+      guest_phone TEXT NOT NULL,
+      pin_hash TEXT NOT NULL UNIQUE,
+      used INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      validated_at TEXT
+    )
+  `);
+
   db.close();
   logger.info("Database initialized.");
 }
@@ -112,6 +125,19 @@ function getDefaultPort() {
     throw new Error("PORT must be an integer between 1 and 65535.");
   }
   return port;
+}
+
+function generateGuestPin(db) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const pin = crypto.randomInt(100000, 1000000).toString();
+    const pinHash = hashAccessCode(pin);
+    const existing = db.prepare("SELECT 1 FROM guest_visits WHERE pin_hash = ?").get(pinHash);
+    if (!existing) {
+      return { pin, pinHash };
+    }
+  }
+
+  throw new Error("Unable to generate a unique guest PIN.");
 }
 
 
@@ -358,6 +384,108 @@ app.post("/invalidate", (req, res) => {
     message: "Access code invalidated successfully.",
     facilityName,
   });
+});
+
+app.post("/guest/register", (req, res) => {
+  const data = req.body;
+  if (!data || Object.keys(data).length === 0) {
+    logger.warning(`POST /guest/register - invalid JSON body from ${req.ip}`);
+    return res.status(400).json({ success: false, error: "Request body must be valid JSON." });
+  }
+
+  const guestName = String(data.guestName ?? "").trim();
+  const guestEmail = String(data.guestEmail ?? "").trim();
+  const guestPhone = String(data.guestPhone ?? "").trim();
+  const missing = missingFields({ guestName, guestEmail, guestPhone });
+  if (missing.length > 0) {
+    return res.status(400).json({
+      success: false,
+      error: `Missing required field(s): ${missing.join(", ")}`,
+    });
+  }
+
+  if (!/^\S+@\S+\.\S+$/.test(guestEmail)) {
+    return res.status(400).json({ success: false, error: "guestEmail must be a valid email address." });
+  }
+
+  const db = getDb();
+  try {
+    const { pin, pinHash } = generateGuestPin(db);
+    const guestId = crypto.randomUUID();
+    const createdAt = nowIso();
+    db.prepare(
+      "INSERT INTO guest_visits (id, guest_name, guest_email, guest_phone, pin_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(guestId, guestName, guestEmail, guestPhone, pinHash, createdAt);
+
+    logger.info(`POST /guest/register - guest visit registered: guestId=${guestId}`);
+    return res.status(201).json({
+      success: true,
+      message: "Guest visit registered successfully.",
+      guestId,
+      guestName,
+      guestEmail,
+      guestPhone,
+      pin,
+      createdAt,
+    });
+  } finally {
+    db.close();
+  }
+});
+
+app.post("/guest/validate", (req, res) => {
+  const data = req.body;
+  if (!data || Object.keys(data).length === 0) {
+    logger.warning(`POST /guest/validate - invalid JSON body from ${req.ip}`);
+    return res.status(400).json({ success: false, error: "Request body must be valid JSON." });
+  }
+
+  const pin = String(data.pin ?? "").trim();
+  if (!/^\d{6}$/.test(pin)) {
+    return res.status(400).json({ success: false, error: "pin must be a 6-digit PIN." });
+  }
+
+  const db = getDb();
+  try {
+    const pinHash = hashAccessCode(pin);
+    const validateVisit = db.transaction(() => {
+      const visit = db.prepare(
+        "SELECT id, guest_name, guest_email, guest_phone, used, created_at FROM guest_visits WHERE pin_hash = ?"
+      ).get(pinHash);
+
+      if (!visit) {
+        return { status: 404, body: { success: false, validated: false, error: "Guest PIN not found." } };
+      }
+      if (visit.used) {
+        return { status: 409, body: { success: false, validated: false, error: "Guest PIN has already been used." } };
+      }
+
+      const validatedAt = nowIso();
+      db.prepare("UPDATE guest_visits SET used = 1, validated_at = ? WHERE id = ? AND used = 0").run(
+        validatedAt,
+        visit.id
+      );
+      return {
+        status: 200,
+        body: {
+          success: true,
+          validated: true,
+          message: "Guest PIN validated successfully.",
+          guestId: visit.id,
+          guestName: visit.guest_name,
+          guestEmail: visit.guest_email,
+          guestPhone: visit.guest_phone,
+          createdAt: visit.created_at,
+          validatedAt,
+        },
+      };
+    });
+
+    logger.info(`POST /guest/validate - validation result: status=${validateVisit.status}`);
+    return res.status(validateVisit.status).json(validateVisit.body);
+  } finally {
+    db.close();
+  }
 });
 
 app.get("/status", (req, res) => {
