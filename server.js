@@ -458,7 +458,7 @@ app.post("/guest/validate", (req, res) => {
       const visit = db.prepare(
         "SELECT id, guest_name, guest_email, guest_phone, used, created_at FROM guest_visits WHERE pin_hash = ?"
       ).get(pinHash);
-
+      console.log('Visit fetched:', visit);
       if (!visit) {
         return { status: 404, body: { success: false, validated: false, error: "Guest PIN not found." } };
       }
@@ -485,7 +485,7 @@ app.post("/guest/validate", (req, res) => {
           validatedAt,
         },
       };
-    });
+    })();
 
     logger.info(`POST /guest/validate - validation result: status=${validateVisit.status}`);
     return res.status(validateVisit.status).json(validateVisit.body);
