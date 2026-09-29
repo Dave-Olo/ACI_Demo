@@ -1,0 +1,184 @@
+{
+  "info": {
+    "_postman_id": "7c59a8d0-3c65-4a6d-9d82-aci-pin-auth",
+    "name": "ACI PIN Authentication API",
+    "description": "Postman collection for the ACI access-code and guest-visit authentication server.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://aci-demo.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "facilityId",
+      "value": "FAC001",
+      "type": "string"
+    },
+    {
+      "key": "facilityName",
+      "value": "Your Facility Name",
+      "type": "string"
+    },
+    {
+      "key": "accessCode",
+      "value": "123456",
+      "type": "string"
+    },
+    {
+      "key": "guestPin",
+      "value": "123456",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Server status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["status"]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["status"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"success\": true,\n  \"message\": \"PIN auth server is running.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Facility access codes",
+      "item": [
+        {
+          "name": "Register access code",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessCode\": \"{{accessCode}}\",\n  \"facilityId\": \"{{facilityId}}\",\n  \"facilityName\": \"{{facilityName}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["register"]
+            }
+          }
+        },
+        {
+          "name": "Register facility",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessCode\": \"{{accessCode}}\",\n  \"facilityName\": \"{{facilityName}}\",\n  \"facilityId\": \"{{facilityId}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/facility/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["facility", "register"]
+            }
+          }
+        },
+        {
+          "name": "Authenticate access code",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessCode\": \"{{accessCode}}\",\n  \"facilityId\": \"{{facilityId}}\",\n  \"facilityName\": \"{{facilityName}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/authenticate",
+              "host": ["{{baseUrl}}"],
+              "path": ["authenticate"]
+            }
+          }
+        },
+        {
+          "name": "Invalidate access code",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessCode\": \"{{accessCode}}\",\n  \"facilityId\": \"{{facilityId}}\",\n  \"facilityName\": \"{{facilityName}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/invalidate",
+              "host": ["{{baseUrl}}"],
+              "path": ["invalidate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Guest visits",
+      "item": [
+        {
+          "name": "Register guest visit",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestName\": \"Jane Doe\",\n  \"guestEmail\": \"jane@example.com\",\n  \"guestPhone\": \"+1 555 0100\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/guest/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["guest", "register"]
+            }
+          }
+        },
+        {
+          "name": "Validate guest PIN",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"{{guestPin}}\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{baseUrl}}/guest/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["guest", "validate"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

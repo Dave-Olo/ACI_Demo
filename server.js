@@ -253,11 +253,15 @@ app.post("/facility/register", (req, res) => {
 });
 
 app.post("/authenticate", (req, res) => {
+
+  console.log(`POST /authenticate attempt from ${req.ip}. Request Body: [{${JSON.stringify(req.body)}]`);
   const data = req.body;
   if (!data || Object.keys(data).length === 0) {
     logger.warning(`POST /authenticate - invalid JSON body from ${req.ip}`);
     return res.status(400).json({ success: false, error: "Request body must be valid JSON." });
   }
+logger.info(`Request body confirmed ${JSON.stringify(req.body)}`)
+
 
   const accessCode = String(data.accessCode ?? "").trim();
   const facilityId = String(data.facilityId ?? "").trim();
@@ -311,6 +315,8 @@ app.post("/authenticate", (req, res) => {
   logger.info(
     `POST /authenticate - authenticated for facilityId=${facilityId} facilityName=${facilityName}`
   );
+
+  console.log(`POST /authenticate - authenticated for facilityId=${facilityId} facilityName=${facilityName} from ${req.ip}`);
 
   return res.status(200).json({
     success: true,
